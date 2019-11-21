@@ -8,7 +8,7 @@ vex::controller Controller;
 vex::competition Competition;
 vex::motor RightDrive = vex::motor(vex::PORT20, true);
 vex::motor LeftDrive = vex::motor(vex::PORT11);
-vex::motor RightSpinner = vex::motor(vex::PORT19);
+vex::motor RightSpinner = vex::motor(vex::PORT19, true);
 vex::motor LeftSpinner = vex::motor(vex::PORT14);
 vex::motor Storage = vex::motor(vex::PORT16);
 vex::motor LeftFlipper = vex::motor(vex::PORT18);
@@ -150,7 +150,7 @@ void record_autonomous(std::string filename, int read_x){
 }
 
 void autonomous(void){
-
+  execute_autonomous("new");
 }
 
 void usercontrol(void){
@@ -160,7 +160,5 @@ void usercontrol(void){
 int main(){
   Competition.autonomous(autonomous);
   Competition.drivercontrol(usercontrol);
-  Brain.Screen.print(ctoa(atoc(100)));
-  record_autonomous("new", 10);
-  execute_autonomous("new");
+  //record_autonomous("new", 10);
 }
