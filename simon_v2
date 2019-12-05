@@ -14,6 +14,17 @@ vex::motor Storage = vex::motor(vex::PORT1);
 vex::motor LeftFlipper = vex::motor(vex::PORT18);
 vex::motor RightFlipper = vex::motor(vex::PORT12, true);
 
+int log_error(int level, std::string error_name, std::string error_def){
+  if(level == 0){
+    Brain.screen.print("Error! Level: Critical");
+  }else_if(level == 1){
+    Brain.screen.print("Error! Level: Non-Critical");
+  }
+  Brain.Screen.print(error_name, ":");
+  Brain.Screen.print(error_def);
+  return 1;
+}
+
 char atoc(int analog){ // analog to char
   // analog can be of range (-128..127)
   if(analog > 100){
@@ -133,7 +144,13 @@ void record_autonomous(std::string filename, int read_x){
   file.close();
 }
 
-void autonomous(void){
+void autonomous(string filename){
+  std::ifstream ftest(filename.c_str());
+  if(ftest.good()){
+    execute_autonomous(filename);
+  }else{
+    log_error(1, "argument_error", "The filename passed does not contain any data.");
+  }
 }
 
 void usercontrol(void){
@@ -141,12 +158,11 @@ void usercontrol(void){
     control(Controller.Axis1.value(), Controller.Axis2.value(), Controller.Axis3.value(), Controller.Axis4.value(), Controller.ButtonL2.pressing(), Controller.ButtonR2.pressing(), Controller.ButtonL1.pressing(), Controller.ButtonR1.pressing(), Controller.ButtonRight.pressing(), Controller.ButtonUp.pressing(), Controller.ButtonLeft.pressing(), Controller.ButtonDown.pressing(), Controller.ButtonX.pressing(), Controller.ButtonY.pressing(), Controller.ButtonA.pressing(), Controller.ButtonB.pressing());
     vex::task::sleep(10);
   }
+  log_error(0, "end_of_control", "The program has terminated.");
 }
 
 int main(){
-  Competition.autonomous(autonomous);
-  Competition.drivercontrol(usercontrol);
-  Brain.Screen.print(ctoa(atoc(100)));
   record_autonomous("new", 10);
-  execute_autonomous("new");
+  Competition.autonomous(autonomous("test"));
+  Competition.drivercontrol(usercontrol);
 }
