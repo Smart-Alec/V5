@@ -1,0 +1,64 @@
+import sys, time, pygame
+
+#filler "syntax" code
+
+pygame.init()
+
+class Brain:
+    def __init__(self):
+        self.screen = BrainLCD()
+
+class BrainLCD:
+    width = 480
+    height = 272
+    def __init__(self):
+        self.screen = pygame.display.set_mode((self.width, self.height))
+        self.color = (0, 0, 0)
+    def clear_screen(self, color = None):
+        self.screen.fill(color)
+    def set_fill_color(self, color):
+        self.color = color
+    def draw_pixel(self, x, y):
+        self.screen.set_at((x, y), self.color)
+
+#actual code
+
+brian = Brain()
+
+class BrainGraphics:
+    def __init__(self, brain):
+        self.brain = brain
+    def pixel(self, pos, color = None):
+        if color:
+            self.brain.screen.set_fill_color(color)
+        self.brain.screen.draw_pixel(pos[0], pos[1])
+    def rectangle(self, pos, dim, color = None):
+        if color:
+            self.brain.screen.set_fill_color(color)
+        for x in range(pos[0], (pos[0]+dim[0])):
+            for y in range(pos[1], (pos[1]+dim[1])):
+                self.brain.screen.draw_pixel(x, y)
+    def circle(self, pos, radius, color = None):
+        if color:
+            self.brain.screen.set_fill_color(color)
+        
+screen = BrainGraphics(brian)
+
+def render():
+    screen.rectangle((0, 0), (100, 100), (255, 0, 0))
+    pygame.display.flip() #necessary for pygame
+while True:
+    render()
+    time.sleep(1)
+
+
+
+
+
+
+
+
+
+
+
+
