@@ -1,4 +1,4 @@
-import sys, time, pygame
+import sys, time, math, pygame
 
 #filler "syntax" code
 
@@ -38,18 +38,41 @@ class BrainGraphics:
         for x in range(pos[0], (pos[0]+dim[0])):
             for y in range(pos[1], (pos[1]+dim[1])):
                 self.brain.screen.draw_pixel(x, y)
-    def circle(self, pos, radius, color = None):
+    def circle(self, pos, r, color = None):
         if color:
             self.brain.screen.set_fill_color(color)
+        cos = int(math.floor(r*0.70710678118)) #cos(pi/4)
+        for x in range(pos[0]-cos, pos[0]+cos):
+            for y in range(pos[1]-cos, pos[1]+cos):
+                self.brain.screen.draw_pixel(x, y)
+        for x in range(-cos, cos):
+            for y in range(cos, r):
+                if((x**2+y**2) <= (r**2)):
+                    self.brain.screen.draw_pixel(x+pos[0], y+pos[1])
+        for x in range(-cos, cos):
+            for y in range(-r, -cos):
+                if((x**2+y**2) <= (r**2)):
+                    self.brain.screen.draw_pixel(x+pos[0], y+pos[1])
+        for x in range(cos, r):
+            for y in range(-cos, cos):
+                if((x**2+y**2) <= (r**2)):
+                    self.brain.screen.draw_pixel(x+pos[0], y+pos[1])
+        for x in range(-r, -cos):
+            for y in range(-cos, cos):
+                if((x**2+y**2) <= (r**2)):
+                    self.brain.screen.draw_pixel(x+pos[0], y+pos[1])
         
 screen = BrainGraphics(brian)
 
-def render():
-    screen.rectangle((0, 0), (100, 100), (255, 0, 0))
+def render(frame):
+    screen.circle(
     pygame.display.flip() #necessary for pygame
+
+frame = 0
 while True:
-    render()
-    time.sleep(1)
+    render(frame)
+    frame += 1
+    time.sleep(1/60)
 
 
 
