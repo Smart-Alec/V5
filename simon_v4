@@ -2,6 +2,10 @@
 #include <fstream>
 #include <string>
 #include <vex.h>
+#include <sstream>
+#include <exception>
+
+using namespace std;
 
 vex::brain Brain;
 vex::controller Controller;
@@ -11,17 +15,10 @@ vex::motor LeftDrive = vex::motor(vex::PORT20);
 vex::motor RightIntake = vex::motor(vex::PORT13);
 vex::motor LeftIntake = vex::motor(vex::PORT18, true);
 vex::motor Storage = vex::motor(vex::PORT14, true);
+vex::motor motors[5] = {RightDrive, LeftDrive, RightIntake, LeftIntake, Storage};
 
-int log_error(int level, std::string error_name, std::string error_def){
-  if(level == 0){
-    Brain.Screen.print("Error! Level: Critical");
-  }else if(level == 1){
-    Brain.Screen.print("Error! Level: Non-Critical");
-  }
-  Brain.Screen.print(error_name.c_str());
-  Brain.Screen.print(error_def.c_str());
-  return 1;
-}
+const string LOGFILE = "log";
+const bool VERBOSE = true;
 
 char atoc(int analog){ // analog to char
   // analog can be of range (-128..127)
@@ -102,6 +99,19 @@ void control(int axis_1, int axis_2, int axis_3, int axis_4, bool l2, bool r2, b
   }else{
     Storage.stop(vex::brakeType::hold);
   }
+  //error controls
+  for(int i = 0; i < 5; i++){
+    if(motors[i].temperature(vex::percentUnits::pct) >= 100){
+      ofstream log(LOGFILE);
+      ostringstream err;
+      err << "<!> sys/critical: temperature overload on port " << motors[i].index() << endl;
+      if(VERBOSE){
+        Brain.Screen.print(err.str().c_str());
+      }
+      log.write(err.str().c_str(), sizeof(err.str()));
+      log.close();
+    }
+  }
 }
 
 void execute_autonomous(std::string filename){
@@ -110,7 +120,6 @@ void execute_autonomous(std::string filename){
   while(true){
     char temp[8];
     file.read(temp, 8);
-    Brain.Screen.print(temp);
     if(file.eof()){
       control(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
       Brain.Screen.print("EOF reached");
@@ -155,20 +164,18 @@ void auton(){
   if(ftest.good()){
     execute_autonomous(filename);
   }else{
-    log_error(1, "argument_error", "The filename passed does not contain any data.");
   }
 }
 
 void usercontrol(void){
   while(true){
     control(Controller.Axis1.value(), Controller.Axis2.value(), Controller.Axis3.value(), Controller.Axis4.value(), Controller.ButtonL2.pressing(), Controller.ButtonR2.pressing(), Controller.ButtonL1.pressing(), Controller.ButtonR1.pressing(), Controller.ButtonRight.pressing(), Controller.ButtonUp.pressing(), Controller.ButtonLeft.pressing(), Controller.ButtonDown.pressing(), Controller.ButtonX.pressing(), Controller.ButtonY.pressing(), Controller.ButtonA.pressing(), Controller.ButtonB.pressing());
-    vex::task::sleep(10);
+    vex::task::sleep(2);
   }
-  log_error(0, "end_of_control", "The program has terminated.");
 }
 
 int main(){
-  record_autonomous("test", 10);
-  //Competition.autonomous(auton);
-  //Competition.drivercontrol(usercontrol);
+  //record_autonomous("test", 2);
+  Competition.autonomous(auton);
+  Competition.drivercontrol(usercontrol);
 }
