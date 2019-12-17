@@ -19,6 +19,21 @@ vex::motor motors[5] = {RightDrive, LeftDrive, RightIntake, LeftIntake, Storage}
 
 const string LOGFILE = "log";
 const bool VERBOSE = true;
+std::string filename = "test"; //This is necessary because Competition::autonomous() does not allow non-void parameter functions.
+
+int log(string err){
+  ofstream log_file(LOGFILE);
+  if(log_file.good()){
+    log_file.write(err.c_str(), sizeof(err.c_str()));
+    if(VERBOSE){
+      Brain.Screen.print(err.c_str());
+    }
+  }else{
+    Brain.Screen.print("<!> sys/log: LOGFILE was unable to be opened.")
+    return 1;
+  }
+  log.close();
+}
 
 char atoc(int analog){ // analog to char
   // analog can be of range (-128..127)
@@ -101,28 +116,23 @@ void control(int axis_1, int axis_2, int axis_3, int axis_4, bool l2, bool r2, b
   }
   //error controls
   for(int i = 0; i < 5; i++){
-    if(motors[i].temperature(vex::percentUnits::pct) >= 100){
-      ofstream log(LOGFILE);
+    if(motors[i].temperature(vex::percentUnits::pct) >= 70){
       ostringstream err;
       err << "<!> sys/critical: temperature overload on port " << motors[i].index() << endl;
-      if(VERBOSE){
-        Brain.Screen.print(err.str().c_str());
-      }
-      log.write(err.str().c_str(), sizeof(err.str()));
-      log.close();
+      log(err.str());
     }
   }
 }
 
 void execute_autonomous(std::string filename){
   std::ifstream file(filename, std::ios::in | std::ios::binary);
-  Brain.Screen.print("Autonomous execution begun");
+  log("<!> sys/log: Autonomous execution begun.");
   while(true){
     char temp[8];
     file.read(temp, 8);
     if(file.eof()){
       control(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-      Brain.Screen.print("EOF reached");
+      log("<!> sys/log: EOF reached.");
       break;
     }else{
       control(ctoa(temp[0]), ctoa(temp[1]), ctoa(temp[2]), ctoa(temp[3]), get_bit(temp[4], 1), get_bit(temp[4], 3), get_bit(temp[4], 5), get_bit(temp[4], 7), get_bit(temp[5], 1), get_bit(temp[5], 3), get_bit(temp[5], 5), get_bit(temp[5], 7), get_bit(temp[6], 1), get_bit(temp[6], 3), get_bit(temp[6], 5), get_bit(temp[6], 7));
@@ -130,7 +140,7 @@ void execute_autonomous(std::string filename){
     }
   }
   file.close();
-  Brain.Screen.print("Autonomous execution ended");
+  log("<!> sys/log: Autonomous execution finished.");
 }
 
 void record_autonomous(std::string filename, int read_x){
@@ -159,11 +169,11 @@ void record_autonomous(std::string filename, int read_x){
 }
 
 void auton(){
-  std::string filename = "test"; //This is necessary because Competition::autonomous() does not allow non-void parameter functions.
   std::ifstream ftest(filename.c_str());
   if(ftest.good()){
     execute_autonomous(filename);
   }else{
+    log("<!> sys/auton: Autonomous file '" + filename + "' was unable to be opened.");
   }
 }
 
@@ -172,6 +182,10 @@ void usercontrol(void){
     control(Controller.Axis1.value(), Controller.Axis2.value(), Controller.Axis3.value(), Controller.Axis4.value(), Controller.ButtonL2.pressing(), Controller.ButtonR2.pressing(), Controller.ButtonL1.pressing(), Controller.ButtonR1.pressing(), Controller.ButtonRight.pressing(), Controller.ButtonUp.pressing(), Controller.ButtonLeft.pressing(), Controller.ButtonDown.pressing(), Controller.ButtonX.pressing(), Controller.ButtonY.pressing(), Controller.ButtonA.pressing(), Controller.ButtonB.pressing());
     vex::task::sleep(2);
   }
+}
+
+void pre_auton(){
+  
 }
 
 int main(){
