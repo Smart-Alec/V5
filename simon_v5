@@ -202,11 +202,24 @@ void pre_auton(){
   while(true){
     if(Controller.ButtonA.pressing()){
       //program is selected
-      Brain.Screen.clearScreen(vex::green);
-      break;
+      if(filename == ""){
+        Brain.Screen.print("Please select a file first.");
+      }else{
+        Brain.Screen.clearScreen(vex::green);
+        break;
+      }
     }else{
       if(Brain.Screen.pressing()){
         //get coords and update colors
+        for(int x = 0; x < 4; x++){
+          for(int y = 0; y < 2; y++){
+            if(Brain.Screen.xPosition() >= (16*(x+1)+100*x) && Brain.Screen.xPosition() <= ((16*(x+1)+100*x)+100)){
+              if(Brain.Screen.yPosition() >= (16*(y+1)+100*y) && Brain.Screen.yPosition() <= ((16*(y+1)+100*y)+100){
+                //in bounds
+              }
+            }
+          }
+        }
         switch(selected){
           case 0:
             filename = "0";
@@ -234,6 +247,7 @@ void pre_auton(){
 }
 
 int main(){
+  //pre_auton();
   //record_autonomous("test", 2);
   pre_auton();
   Competition.autonomous(auton);
