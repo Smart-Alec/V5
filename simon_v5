@@ -19,7 +19,7 @@ vex::motor motors[5] = {RightDrive, LeftDrive, RightIntake, LeftIntake, Storage}
 
 const string LOGFILE = "log";
 const bool VERBOSE = true;
-std::string filename = "test"; //This is necessary because Competition::autonomous() does not allow non-void parameter functions.
+std::string filename = ""; //This is necessary because Competition::autonomous() does not allow non-void parameter functions.
 
 int log(string err){
   ofstream log_file(LOGFILE);
@@ -58,6 +58,7 @@ int ctoa(char byte){ // char to analog
   }else if(analog <= 100){
     return analog;
   }else{
+    log("<!> sys/critical: What the actual fuck ???\n in ctoa()\n")
     return 0; //uhoh
   }
 }
@@ -68,6 +69,7 @@ bool get_bit(char analog, int index){ // gets selected bit from byte
   }else if(((analog >> index) & 1) == 0){
     return false;
   }else{
+    log("<!> sys/critical: bit is not binary\n in get_bit()\n")
     return false; // that's hacky
   }
 }
@@ -185,6 +187,7 @@ void usercontrol(void){
   }
 }
 
+int selected = 8;
 void pre_auton(){
   Brain.Screen.setFillColor(vex::red);
   int num = 0;
@@ -199,10 +202,31 @@ void pre_auton(){
   while(true){
     if(Controller.ButtonA.pressing()){
       //program is selected
+      Brain.Screen.clearScreen(vex::green);
       break;
     }else{
       if(Brain.Screen.pressing()){
         //get coords and update colors
+        switch(selected){
+          case 0:
+            filename = "0";
+          case 1:
+            filename = "1";
+          case 2:
+            filename = "2";
+          case 3:
+            filename = "3";
+          case 4:
+            filename = "4";
+          case 5:
+            filename = "5";
+          case 6:
+            filename = "6";
+          case 7:
+            filename = "7";
+          default:
+            filename = "";
+        }
       }
       vex::task::sleep(10);
     }
