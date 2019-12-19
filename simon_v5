@@ -194,8 +194,7 @@ void pre_auton(){
   for(int x = 0; x < 4; x++){
     for(int y = 0; y < 2; y++){
       Brain.Screen.drawRectangle((16*(x+1)+100*x), (16*(y+1)+100*y), 100, 100);
-      char temp = num;
-      num++;
+      char temp = x+1+4*y;
       Brain.Screen.printAt((16*(x+1)+100*x+44), (16*(y+1)+100*y+54), "%d", temp);
     }
   }
@@ -216,29 +215,35 @@ void pre_auton(){
             if(Brain.Screen.xPosition() >= (16*(x+1)+100*x) && Brain.Screen.xPosition() <= ((16*(x+1)+100*x)+100)){
               if(Brain.Screen.yPosition() >= (16*(y+1)+100*y) && Brain.Screen.yPosition() <= ((16*(y+1)+100*y)+100){
                 //in bounds
+                Brain.Screen.drawRectangle((16*(x+1)+100*x), (16*(y+1)+100*y), 100, 100);
+                char temp = x+1+4*y;
+                Brain.Screen.printAt((16*(x+1)+100*x+44), (16*(y+1)+100*y+54), "%d", temp);
+                //use `selected` to re-draw red rect
+                selected = x+1+4*y;
+                switch(selected){
+                  case 0:
+                    filename = "example0";
+                  case 1:
+                    filename = "example1";
+                  case 2:
+                    filename = "example2";
+                  case 3:
+                    filename = "example3";
+                  case 4:
+                    filename = "example4";
+                  case 5:
+                    filename = "example5";
+                  case 6:
+                    filename = "example6";
+                  case 7:
+                    filename = "example7";
+                  default:
+                    filename = "";
+                  }
+                }
               }
             }
           }
-        }
-        switch(selected){
-          case 0:
-            filename = "0";
-          case 1:
-            filename = "1";
-          case 2:
-            filename = "2";
-          case 3:
-            filename = "3";
-          case 4:
-            filename = "4";
-          case 5:
-            filename = "5";
-          case 6:
-            filename = "6";
-          case 7:
-            filename = "7";
-          default:
-            filename = "";
         }
       }
       vex::task::sleep(10);
