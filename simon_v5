@@ -16,7 +16,8 @@ vex::motor RightIntake = vex::motor(vex::PORT13);
 vex::motor LeftIntake = vex::motor(vex::PORT18, true);
 vex::motor RightStorage = vex::motor(vex::PORT14, true);
 vex::motor LeftStorage = vex::motor(vex::PORT19);
-vex::motor motors[6] = {RightDrive, LeftDrive, RightIntake, LeftIntake, RightStorage, LeftStorage};
+vex::motor IntakeAdjuster = vex::motor(vex::PORT16);
+vex::motor motors[7] = {RightDrive, LeftDrive, RightIntake, LeftIntake, RightStorage, LeftStorage, IntakeAdjuster};
 
 const string LOGFILE = "log";
 const bool VERBOSE = true;
@@ -94,6 +95,8 @@ char set_bits(int bits[8]){ // sets bits in a byte
   return byte[0]; // Don't remove indexing; It's super hacky but the compiler is broken and won't recognize char byte;
 }
 
+bool adjusted = false;
+float cycles_timing = 0.25;
 void control(int axis_1, int axis_2, int axis_3, int axis_4, bool l2, bool r2, bool l1, bool r1, bool right, bool up, bool left, bool down, bool x, bool y, bool a, bool b){
   //add "driver control" function here
   LeftDrive.spin(vex::directionType::fwd, (axis_3+axis_1), vex::percentUnits::pct);
@@ -112,14 +115,29 @@ void control(int axis_1, int axis_2, int axis_3, int axis_4, bool l2, bool r2, b
   }
   //tilt storage
   if(up){
-    RightStorage.spin(vex::directionType::fwd, 100, vex::percentUnits::pct);
-    LeftStorage.spin(vex::directionType::fwd, 100, vex::percentUnits::pct);
+    cycles_timing = cycles_timing + 0.002;
+    RightStorage.spin(vex::directionType::fwd, 100*cycles_timing, vex::percentUnits::pct);
+    LeftStorage.spin(vex::directionType::fwd, 100*cycles_timing, vex::percentUnits::pct);
   }else if(down){
-    RightStorage.spin(vex::directionType::rev, 100, vex::percentUnits::pct);
-    LeftStorage.spin(vex::directionType::rev, 100, vex::percentUnits::pct);
+    cycles_timing = cycles_timing + 0.002;
+    RightStorage.spin(vex::directionType::rev, 100*cycles_timing, vex::percentUnits::pct);
+    LeftStorage.spin(vex::directionType::rev, 100*cycles_timing, vex::percentUnits::pct);
   }else{
+    cycles_timing = 0.25;
     RightStorage.stop(vex::brakeType::hold);
     LeftStorage.stop(vex::brakeType::hold);
+  }
+  //left and right
+  if(left){
+    if(adjusted){
+      IntakeAdjuster.spinFor(-100, vex::rotationUnits::deg, false);
+    }
+    adjusted = false;
+  }else if(right){
+    if(adjusted == false){
+      IntakeAdjuster.spinFor(100, vex::rotationUnits::deg, false);
+    }
+    adjusted = true;
   }
   //error controls
   for(int i = 0; i < 5; i++){
