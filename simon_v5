@@ -114,18 +114,21 @@ void control(int axis_1, int axis_2, int axis_3, int axis_4, bool l2, bool r2, b
     LeftIntake.stop(vex::brakeType::coast);
   }
   //tilt storage
+  //dynamic power allocation
   if(up){
-    cycles_timing = cycles_timing + 0.002;
-    RightStorage.spin(vex::directionType::fwd, 100*cycles_timing, vex::percentUnits::pct);
-    LeftStorage.spin(vex::directionType::fwd, 100*cycles_timing, vex::percentUnits::pct);
+    cycles_timing = cycles_timing + 0.0001;
+    RightStorage.spin(vex::directionType::fwd, cycles_timing*100, vex::percentUnits::pct);
+    LeftStorage.spin(vex::directionType::fwd, cycles_timing*100, vex::percentUnits::pct);
   }else if(down){
-    cycles_timing = cycles_timing + 0.002;
-    RightStorage.spin(vex::directionType::rev, 100*cycles_timing, vex::percentUnits::pct);
-    LeftStorage.spin(vex::directionType::rev, 100*cycles_timing, vex::percentUnits::pct);
+    //cycles_timing = cycles_timing + 0.0001;
+    //RightStorage.spin(vex::directionType::rev, 100*(cycles_timing+1-RightStorage.efficiency(vex::percentUnits::pct)), vex::percentUnits::pct);
+    //LeftStorage.spin(vex::directionType::rev, 100*(cycles_timing+1-LeftStorage.efficiency(vex::percentUnits::pct)), vex::percentUnits::pct);
+    RightStorage.spin(vex::directionType::rev, 25, vex::percentUnits::pct);
+    LeftStorage.spin(vex::directionType::rev, 25, vex::percentUnits::pct);
   }else{
+    RightStorage.stop(vex::brakeType::coast);
+    LeftStorage.stop(vex::brakeType::coast);
     cycles_timing = 0.25;
-    RightStorage.stop(vex::brakeType::hold);
-    LeftStorage.stop(vex::brakeType::hold);
   }
   //left and right
   if(left){
@@ -284,9 +287,9 @@ void pre_auton(){
 }
 
 int main(){
-  //pre_auton();
-  //record_autonomous(filename, 2);
   pre_auton();
-  Competition.autonomous(auton);
-  Competition.drivercontrol(usercontrol);
+  record_autonomous(filename, 2);
+  //pre_auton();
+  //Competition.autonomous(auton);
+  //Competition.drivercontrol(usercontrol);
 }
