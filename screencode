@@ -1,0 +1,321 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <vex.h>
+#include <sstream>
+#include <exception>
+
+using namespace std;
+
+vex::brain Brain;
+vex::controller Controller;
+vex::competition Competition;
+vex::motor RightDrive = vex::motor(vex::PORT11, true);
+vex::motor LeftDrive = vex::motor(vex::PORT20);
+vex::motor RightIntake = vex::motor(vex::PORT13);
+vex::motor LeftIntake = vex::motor(vex::PORT18, true);
+vex::motor RightStorage = vex::motor(vex::PORT14, true);
+vex::motor LeftStorage = vex::motor(vex::PORT19);
+vex::motor IntakeAdjuster = vex::motor(vex::PORT16, true);
+vex::motor motors[7] = {RightDrive, LeftDrive, RightIntake, LeftIntake, RightStorage, LeftStorage, IntakeAdjuster};
+
+const string LOGFILE = "log";
+const bool VERBOSE = true;
+std::string filename = ""; //This is necessary because Competition::autonomous() does not allow non-void parameter functions.
+float speed_x = 1.0;
+int log(string err){
+  ofstream log_file(LOGFILE);
+  if(log_file.good()){
+    log_file.write(err.c_str(), sizeof(err.c_str()));
+    if(VERBOSE){
+      Brain.Screen.print(err.c_str());
+    }
+    return 0;
+  }else{
+    Brain.Screen.print("<!> sys/log: LOGFILE was unable to be opened.\n");
+    return 1;
+  }
+  log_file.close();
+}
+
+char atoc(int analog){ // analog to char
+  // analog can be of range (-128..127)
+  if(analog > 100){
+    char byte = 100;
+    return byte;
+  }else if(analog < -100){
+    char byte = -100;
+    return byte;
+  }else{
+    char byte = analog;
+    return byte;
+  }
+}
+
+int ctoa(char byte){ // char to analog
+  int analog = byte;
+  //bugfix?
+  if(analog > 100){
+    return (analog-256);
+  }else if(analog <= 100){
+    return analog;
+  }else{
+    log("<!> sys/critical: What the actual fuck ???\n in ctoa()\n");
+    return 0; //uhoh
+  }
+}
+
+bool get_bit(char analog, int index){ // gets selected bit from byte
+  if(((analog >> index) & 1) == 1){
+    return true;
+  }else if(((analog >> index) & 1) == 0){
+    return false;
+  }else{
+    log("<!> sys/critical: bit is not binary\n in get_bit()\n");
+    return false; // that's hacky
+  }
+}
+
+int btoi(bool button){ // bool to int
+  if(button)
+    return 1;
+  else
+    return 0;
+}
+
+char set_bits(int bits[8]){ // sets bits in a byte
+  char byte[1];
+  for(int i = 0; i < 8; i++){
+    if(bits[i] == 1){ // set
+      byte[0] |= 1 << i;
+    }else if(bits[i] == 0){ // unset
+      byte[0] &= ~(1 << i);
+    }
+  }
+  return byte[0]; // Don't remove indexing; It's super hacky but the compiler is broken and won't recognize char byte;
+}
+
+bool adjusted = false;
+//float cycles_timing = 0.25;
+void control(int axis_1, int axis_2, int axis_3, int axis_4, bool l2, bool r2, bool l1, bool r1, bool right, bool up, bool left, bool down, bool x, bool y, bool a, bool b){
+  //add "driver control" function here
+  //speed_x
+  if(l1){
+    if(speed_x < 1.0){
+      speed_x += 0.001;
+    }
+  }else if(l2){
+    if(speed_x > 0.0){
+      speed_x -= 0.001;
+    }
+  }
+  LeftDrive.spin(vex::directionType::fwd, (axis_3+axis_1)*speed_x, vex::percentUnits::pct);
+  RightDrive.spin(vex::directionType::fwd, (axis_3-axis_1)*speed_x, vex::percentUnits::pct);
+  if(r1){
+    //intake
+    RightIntake.spin(vex::directionType::fwd, 100*speed_x, vex::percentUnits::pct);
+    LeftIntake.spin(vex::directionType::fwd, 100*speed_x, vex::percentUnits::pct);
+  }else if(r2){
+    //outtake
+    RightIntake.spin(vex::directionType::rev, 100*speed_x, vex::percentUnits::pct);
+    LeftIntake.spin(vex::directionType::rev, 100*speed_x, vex::percentUnits::pct);
+  }else{
+    RightIntake.stop(vex::brakeType::coast);
+    LeftIntake.stop(vex::brakeType::coast);
+  }
+  //tilt storage
+  //dynamic power allocation
+  if(up){
+    //cycles_timing = cycles_timing + 0.0001;
+    RightStorage.spin(vex::directionType::fwd, 100*speed_x, vex::percentUnits::pct);
+    LeftStorage.spin(vex::directionType::fwd, 100*speed_x, vex::percentUnits::pct);
+  }else if(down){
+    //cycles_timing = cycles_timing + 0.0001;
+    //RightStorage.spin(vex::directionType::rev, 100*(cycles_timing+1-RightStorage.efficiency(vex::percentUnits::pct)), vex::percentUnits::pct);
+    //LeftStorage.spin(vex::directionType::rev, 100*(cycles_timing+1-LeftStorage.efficiency(vex::percentUnits::pct)), vex::percentUnits::pct);
+    RightStorage.spin(vex::directionType::rev, 25*speed_x, vex::percentUnits::pct);
+    LeftStorage.spin(vex::directionType::rev, 25*speed_x, vex::percentUnits::pct);
+  }else{
+    RightStorage.stop(vex::brakeType::coast);
+    LeftStorage.stop(vex::brakeType::coast);
+    //cycles_timing = 0.25;
+  }
+  //left and right
+  if(left){
+    if(adjusted){
+      IntakeAdjuster.spinFor(-100, vex::rotationUnits::deg, false);
+    }
+    adjusted = false;
+  }else if(right){
+    if(adjusted == false){
+      IntakeAdjuster.spinFor(100, vex::rotationUnits::deg, false);
+    }
+    adjusted = true;
+  }
+  //error controls
+  for(int i = 0; i < 5; i++){
+    if(motors[i].temperature(vex::percentUnits::pct) >= 70){
+      ostringstream err;
+      err << "<!> sys/critical: temperature overload on port " << motors[i].index() << endl << "\n";
+      log(err.str());
+    }
+  }
+}
+
+void execute_autonomous(std::string filename){
+  std::ifstream file(filename, std::ios::in | std::ios::binary);
+  log("<!> sys/log: Autonomous execution begun.\n");
+  while(true){
+    char temp[8];
+    file.read(temp, 8);
+    if(file.eof()){
+      control(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+      log("<!> sys/log: EOF reached.\n");
+      break;
+    }else{
+      control(ctoa(temp[0]), ctoa(temp[1]), ctoa(temp[2]), ctoa(temp[3]), get_bit(temp[4], 1), get_bit(temp[4], 3), get_bit(temp[4], 5), get_bit(temp[4], 7), get_bit(temp[5], 1), get_bit(temp[5], 3), get_bit(temp[5], 5), get_bit(temp[5], 7), get_bit(temp[6], 1), get_bit(temp[6], 3), get_bit(temp[6], 5), get_bit(temp[6], 7));
+      vex::task::sleep(ctoa(temp[7]));
+    }
+  }
+  file.close();
+  log("<!> sys/log: Autonomous execution finished.\n");
+}
+
+void record_autonomous(std::string filename, int read_x){ // Added speed_x: divides all values by speed_x to more precisely control robot
+  std::ofstream file(filename, std::ios::out | std::ios::binary);
+  while(true){
+    control(Controller.Axis1.value(), Controller.Axis2.value(), Controller.Axis3.value(), Controller.Axis4.value(), Controller.ButtonL2.pressing(), Controller.ButtonR2.pressing(), Controller.ButtonL1.pressing(), Controller.ButtonR1.pressing(), Controller.ButtonRight.pressing(), Controller.ButtonUp.pressing(), Controller.ButtonLeft.pressing(), Controller.ButtonDown.pressing(), Controller.ButtonX.pressing(), Controller.ButtonY.pressing(), Controller.ButtonA.pressing(), Controller.ButtonB.pressing());
+    char temp[8];
+    temp[0] = atoc(Controller.Axis1.value());
+    temp[1] = atoc(Controller.Axis2.value());
+    temp[2] = atoc(Controller.Axis3.value());
+    temp[3] = atoc(Controller.Axis4.value());
+    int temp_top[8] = {0, btoi(Controller.ButtonL2.pressing()), 0, btoi(Controller.ButtonR2.pressing()), 0, btoi(Controller.ButtonL1.pressing()), 0, btoi(Controller.ButtonR1.pressing())};
+    temp[4] = set_bits(temp_top);
+    int temp_direction[8] = {0, btoi(Controller.ButtonRight.pressing()), 0, btoi(Controller.ButtonUp.pressing()), 0, btoi(Controller.ButtonLeft.pressing()), 0, btoi(Controller.ButtonDown.pressing())};
+    temp[5] = set_bits(temp_direction);
+    int temp_letters[8] = {0, btoi(Controller.ButtonX.pressing()), 0, btoi(Controller.ButtonY.pressing()), 0, btoi(Controller.ButtonA.pressing()), 0, btoi(Controller.ButtonB.pressing())};
+    temp[6] = set_bits(temp_letters);
+    temp[7] = atoc(read_x);
+    file.write(temp, 8);
+    if(Controller.ButtonB.pressing()){
+      break;
+    }
+    vex::task::sleep(read_x);
+  }
+  file.close();
+}
+
+void auton(){
+  std::ifstream ftest(filename.c_str());
+  if(ftest.good()){
+    execute_autonomous(filename);
+  }else{
+    log("<!> sys/auton: Autonomous file '" + filename + "' was unable to be opened.\n");
+  }
+}
+
+void usercontr(void){ //CHANGE BACK TO USERCONTROL (IF NEEDED)
+  int r = 0;
+  int c = 0;
+  vex::color colors[6] = {vex::red, vex::orange, vex::yellow, vex::green, vex::blue, vex::purple};
+  Brain.Screen.setFont(vex::fontType::mono60);
+  while(true){
+    control(Controller.Axis1.value(), Controller.Axis2.value(), Controller.Axis3.value(), Controller.Axis4.value(), Controller.ButtonL2.pressing(), Controller.ButtonR2.pressing(), Controller.ButtonL1.pressing(), Controller.ButtonR1.pressing(), Controller.ButtonRight.pressing(), Controller.ButtonUp.pressing(), Controller.ButtonLeft.pressing(), Controller.ButtonDown.pressing(), Controller.ButtonX.pressing(), Controller.ButtonY.pressing(), Controller.ButtonA.pressing(), Controller.ButtonB.pressing());
+    Brain.Screen.setFillColor(colors[c]); Brain.Screen.setPenColor(colors[c]);
+    Brain.Screen.drawCircle(240, 136, r);
+    Brain.Screen.setPenColor(vex::white);
+    Brain.Screen.printAt(200, 140, false, "%d \%", int(speed_x*100));
+    if(r < 280){r += 1;}else{r = 0; if(c < 5){c += 1;}else{c = 0;}}
+    vex::task::sleep(4);
+  }
+}
+
+void render_selection(int selection){
+  Brain.Screen.setFont(vex::fontType::mono60);
+  for(int y = 0; y < 2; y++){
+    for(int x = 0; x < 4; x++){
+      int num = (x+1)+4*y;
+      if(selection == num){
+        Brain.Screen.setFillColor(vex::green);
+      }else{
+        Brain.Screen.setFillColor(vex::red);
+      }
+      Brain.Screen.drawRectangle((16*(x+1)+100*x), (16*(y+1)+100*y), 100, 100);
+      Brain.Screen.printAt((16*(x+1)+100*x+35), (16*(y+1)+100*y+65), "%d", num);
+    }
+  }
+  ostringstream i;
+  i << selection;
+  filename = i.str();
+}
+void pre_auton(){
+  render_selection(1);
+  int pos[2] = {0, 0}; //(x, y) position of button
+  string prev = "";
+  while(true){
+    if(Controller.ButtonDown.pressing()){
+      if(prev != "down"){
+        prev = "down";
+        if(pos[1] < 1){pos[1] += 1;}
+        render_selection(pos[0]+1+4*pos[1]);
+      }
+    }else if(Controller.ButtonUp.pressing()){
+      if(prev != "up"){
+        prev = "up";
+        if(pos[1] > 0){pos[1] -= 1;}
+        render_selection(pos[0]+1+4*pos[1]);
+      }
+    }else if(Controller.ButtonLeft.pressing()){
+      if(prev != "left"){
+        prev = "left";
+        if(pos[0] > 0){pos[0] -= 1;}
+        render_selection(pos[0]+1+4*pos[1]);
+      }
+    }else if(Controller.ButtonRight.pressing()){
+      if(prev != "right"){
+        prev = "right";
+        if(pos[0] < 3){pos[0] += 1;}
+        render_selection(pos[0]+1+4*pos[1]);
+      }
+    }else if(Controller.ButtonA.pressing()){
+      //Auton is selected (but verify first):
+      for(int i = 0; i < 128; i++){
+        Brain.Screen.clearScreen(i);
+        Brain.Screen.setFillColor(i);
+        Brain.Screen.setFont(vex::fontType::mono60);
+        Brain.Screen.printAt(150, 75, "Writing");                                                     //CHANGE FOR READ/WRITE
+        Brain.Screen.printAt(110, 150, "Program %d", pos[0]+1+4*pos[1]);
+        Brain.Screen.setFont(vex::fontType::mono12);
+        Brain.Screen.printAt(180, 220, "(Good luck, Jack)");
+        vex::task::sleep(10);
+      }
+      Competition.drivercontrol(usercontr);
+      break;
+    }else{
+      prev = "";
+      if(Brain.Screen.pressing()){
+        for(int x = 0; x < 4; x++){
+          for(int y = 0; y < 2; y++){
+            if(Brain.Screen.xPosition() >= (16*(x+1)+100*x) && Brain.Screen.xPosition() <= ((16*(x+1)+100*x)+100)){
+              if(Brain.Screen.yPosition() >= (16*(y+1)+100*y) && Brain.Screen.yPosition() <= ((16*(y+1)+100*y)+100)){
+                //in bounds
+                pos[0] = x;
+                pos[1] = y;
+                render_selection(pos[0]+1+4*pos[1]);
+              }
+            }
+          }
+        }
+      }
+    }
+    vex::task::sleep(4);
+  }
+}
+
+int main(){
+  //pre_auton();
+  //record_autonomous(filename, 4);
+  pre_auton();
+  Competition.autonomous(auton);
+}
