@@ -112,6 +112,7 @@ void x_leds_on(){
     leds[i].on();
   }
 }
+
 bool adjusted = false;
 //float cycles_timing = 0.25;
 void control(int axis_1, int axis_2, int axis_3, int axis_4, bool l2, bool r2, bool l1, bool r1, bool right, bool up, bool left, bool down, bool x, bool y, bool a, bool b){
@@ -146,8 +147,8 @@ void control(int axis_1, int axis_2, int axis_3, int axis_4, bool l2, bool r2, b
   //dynamic power allocation
   if(up){
     //cycles_timing = cycles_timing + 0.0001;
-    RightStorage.spin(vex::directionType::fwd, 100*speed_x, vex::percentUnits::pct);
-    LeftStorage.spin(vex::directionType::fwd, 100*speed_x, vex::percentUnits::pct);
+    RightStorage.spin(vex::directionType::fwd, 50*speed_x, vex::percentUnits::pct);
+    LeftStorage.spin(vex::directionType::fwd, 50*speed_x, vex::percentUnits::pct);
   }else if(down){
     //cycles_timing = cycles_timing + 0.0001;
     //RightStorage.spin(vex::directionType::rev, 100*(cycles_timing+1-RightStorage.efficiency(vex::percentUnits::pct)), vex::percentUnits::pct);
@@ -182,7 +183,6 @@ void control(int axis_1, int axis_2, int axis_3, int axis_4, bool l2, bool r2, b
 }
 
 void execute_autonomous(std::string filename){
-  Brain.Screen.print(filename);
   std::ifstream file(filename, std::ios::in | std::ios::binary);
   log("<!> sys/log: Autonomous execution begun.\n");
   while(true){
@@ -235,6 +235,7 @@ void auton(){
   }
 }
 
+int64_t cycle = 0;
 void usercontr(void){ //CHANGE BACK TO USERCONTROL (IF NEEDED)
   int r = 0;
   int c = 0;
@@ -265,9 +266,35 @@ void render_selection(int selection){
       Brain.Screen.printAt((16*(x+1)+100*x+35), (16*(y+1)+100*y+65), "%d", num);
     }
   }
-  ostringstream i;
-  i << selection;
-  filename = i.str();
+  switch(selection){
+    case 1:
+      filename = "1";
+      break;
+    case 2:
+      filename = "2";
+      break;
+    case 3:
+      filename = "3";
+      break;
+    case 4:
+      filename = "4";
+      break;
+    case 5:
+      filename = "5";
+      break;
+    case 6:
+      filename = "6";
+      break;
+    case 7:
+      filename = "7";
+      break;
+    case 8:
+      filename = "8";
+      break;
+    default:
+      filename = "1";
+      break;
+  }
 }
 void pre_auton(){
   render_selection(1);
@@ -310,8 +337,7 @@ void pre_auton(){
         Brain.Screen.printAt(180, 220, "(Good luck, Jack)");
         vex::task::sleep(10);
       }
-      //Competition.drivercontrol(usercontr); //READ
-      record_autonomous(filename, 4); //WRITE
+      Competition.drivercontrol(usercontr);
       break;
     }else{
       prev = "";
@@ -336,5 +362,7 @@ void pre_auton(){
 
 int main(){
   pre_auton();
-  Competition.autonomous(auton);
+  record_autonomous(filename, 4);
+  //pre_auton();
+  //Competition.autonomous(auton);
 }
